@@ -3,6 +3,7 @@ import socket
 import collections
 import threading
 import struct
+import fcntl
 
 Controls = collections.namedtuple(
     'Controls', ['yaw', 'pitch', 'roll', 'throttle']
@@ -39,8 +40,17 @@ class Client(object):
             sys.stdout.write("YAW=%f, PITCH=%f, ROLL=%f, THROT=%f\n" %
                              controls)
 
+
+def get_interface_ip(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(s.fileno(),
+                            0x8915,
+                            struct.pack('256s', ifname[:15]))[20:24])
+
 def main():
-    client = Client("127.0.0.1", 6969)
+    if_ip = get_interface_ip("wlan0")
+    sys.stdout.write("Listening on %s...\n" % if_ip)
+    client = Client(if_ip, 6969)
     client.start()
 
 if __name__ == "__main__":
