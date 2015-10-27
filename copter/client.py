@@ -4,6 +4,7 @@ import collections
 import threading
 import struct
 import fcntl
+import time
 
 Controls = collections.namedtuple(
     'Controls', ['yaw', 'pitch', 'roll', 'throttle']
@@ -14,7 +15,7 @@ class Client(object):
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.socket.settimeout(3.0)
+        self.socket.settimeout(1.0)
         self.controls = Controls(0.0, 0.0, 0.0, 0.0)
 
         self.lock = threading.Lock()
@@ -31,7 +32,10 @@ class Client(object):
 
     def rx_packet(self):
         while not self.stop_event.is_set():
-            control_struct, _ = self.socket.recvfrom(1024)
+            try:
+                control_struct, _ = self.socket.recvfrom(1024)
+            except socket.timeout:
+                continue
             controls = struct.unpack("ffff", control_struct)
             self.lock.acquire()
             self.controls = Controls(*controls)
@@ -52,6 +56,13 @@ def main():
     sys.stdout.write("Listening on %s...\n" % if_ip)
     client = Client(if_ip, 6969)
     client.start()
+
+    try:
+        while True:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        sys.stdout.write("Stopping client...\n")
+        client.stop()
 
 if __name__ == "__main__":
     main()
